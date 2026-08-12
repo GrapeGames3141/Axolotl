@@ -27,6 +27,9 @@ var stat_label: Label
 var toast: Label
 var mini_hud_label: Label
 var audio_player: AudioStreamPlayer
+var backdrop_texture: Texture2D
+var axolotl_texture: Texture2D
+var decor_atlas_texture: Texture2D
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
@@ -34,6 +37,9 @@ func _ready() -> void:
 	canvas = Control.new(); canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE; canvas.draw.connect(_draw_world); add_child(canvas)
 	ui = Control.new(); ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); add_child(ui)
 	audio_player = AudioStreamPlayer.new(); add_child(audio_player)
+	backdrop_texture = load("res://assets/storybook/paludarium-backdrop-v1.png") as Texture2D
+	axolotl_texture = load("res://assets/storybook/axolotl-swim-v1.png") as Texture2D
+	decor_atlas_texture = load("res://assets/storybook/decor-atlas-v1.png") as Texture2D
 	GameState.state_changed.connect(refresh)
 	screen = "home" if GameState.tutorial_complete else "onboarding"
 	refresh()
@@ -116,7 +122,8 @@ func build_shop() -> void:
 	for id in catalog.ids():
 		var item = catalog.get_item(id)
 		var item_id: String = id
-		make_label("%s  ·  %d pearls\n%s" % [item.title, item.price, item.description], Vector2(50, y), Vector2(420, 76), 18, item.color)
+		make_atlas_icon(item_id, Rect2(42, y + 2, 70, 70))
+		make_label("%s  ·  %d pearls\n%s" % [item.title, item.price, item.description], Vector2(115, y), Vector2(355, 76), 18, item.color)
 		make_button("Buy", Rect2(510, y + 8, 150, 56), func(): buy_from_shop(item_id), Color("7a9c83"))
 		y += 96
 
@@ -146,6 +153,24 @@ func select_decor(item_id: String) -> void:
 	selected_item = item_id
 	var item = catalog.get_item(item_id)
 	say("Place %s in the tank." % item.title)
+
+func atlas_region(item_id: String) -> Rect2:
+	var cell := 418.0
+	var cells := {
+		"water_fern": Vector2i(0, 0), "moon_stone": Vector2i(1, 0), "cozy_log": Vector2i(2, 0),
+		"cloud_hide": Vector2i(0, 1), "gentle_filter": Vector2i(1, 1), "pearl_bubbler": Vector2i(2, 1),
+		"berry_bites": Vector2i(0, 2), "moss_pellets": Vector2i(1, 2), "ribbon_hat": Vector2i(2, 2)
+	}
+	var cell_index: Vector2i = cells.get(item_id, Vector2i(-1, -1))
+	return Rect2(Vector2(cell_index.x * cell, cell_index.y * cell), Vector2(cell, cell))
+
+func make_atlas_icon(item_id: String, rect: Rect2) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.position = rect.position; icon.size = rect.size; icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE; icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED; icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if decor_atlas_texture != null:
+		var atlas := AtlasTexture.new(); atlas.atlas = decor_atlas_texture; atlas.region = atlas_region(item_id); icon.texture = atlas
+	ui.add_child(icon)
+	return icon
 
 func build_minis() -> void:
 	make_label("Play together", Vector2(50, 70), Vector2(620, 58), 36, Color("fff4d6"))
@@ -236,17 +261,26 @@ func _draw_world() -> void:
 	var scale := minf(get_viewport_rect().size.x / W, get_viewport_rect().size.y / H)
 	var offset := (get_viewport_rect().size - Vector2(W, H) * scale) * 0.5
 	canvas.draw_set_transform(offset, 0.0, Vector2(scale, scale))
-	canvas.draw_rect(Rect2(0, 0, W, H), Color("203e52"))
+	if backdrop_texture != null:
+		canvas.draw_texture_rect(backdrop_texture, Rect2(0, 0, W, H), false)
+		canvas.draw_rect(Rect2(0, 0, W, 118), Color("092333", 0.42))
+		canvas.draw_rect(Rect2(0, 760, W, 520), Color("092333", 0.30))
+	else:
+		canvas.draw_rect(Rect2(0, 0, W, H), Color("203e52"))
 	# Soft storybook sky, land, and rounded glass tank.
-	canvas.draw_circle(Vector2(600, 160), 105, Color("f7cb82", 0.35))
-	canvas.draw_rect(Rect2(0, 680, W, 600), Color("355d65"))
+	if backdrop_texture == null:
+		canvas.draw_circle(Vector2(600, 160), 105, Color("f7cb82", 0.35))
+		canvas.draw_rect(Rect2(0, 680, W, 600), Color("355d65"))
 	var tank := Rect2(38, 130, 644, 610)
-	canvas.draw_style_box(_rounded(Color("7ec8d5", 0.86), 34), tank)
-	canvas.draw_style_box(_rounded(Color("d4f5ed", 0.32), 34), Rect2(53, 146, 614, 580))
-	canvas.draw_rect(Rect2(55, 500, 610, 225), Color("4ca9bf", 0.60))
-	canvas.draw_circle(Vector2(190, 230), 120, Color("6cae84", 0.75)); canvas.draw_circle(Vector2(570, 215), 145, Color("75b58d", 0.70))
+	canvas.draw_style_box(_rounded(Color("d4f5ed", 0.12), 34), tank)
+	if backdrop_texture == null:
+		canvas.draw_style_box(_rounded(Color("7ec8d5", 0.86), 34), tank)
+		canvas.draw_style_box(_rounded(Color("d4f5ed", 0.32), 34), Rect2(53, 146, 614, 580))
+		canvas.draw_rect(Rect2(55, 500, 610, 225), Color("4ca9bf", 0.60))
+		canvas.draw_circle(Vector2(190, 230), 120, Color("6cae84", 0.75)); canvas.draw_circle(Vector2(570, 215), 145, Color("75b58d", 0.70))
 	# gravel
-	for x in range(75, 655, 43): canvas.draw_circle(Vector2(x, 694 + (x % 3) * 6), 18, Color("65869a"))
+	if backdrop_texture == null:
+		for x in range(75, 655, 43): canvas.draw_circle(Vector2(x, 694 + (x % 3) * 6), 18, Color("65869a"))
 	_draw_placements()
 	_draw_axolotl(Vector2(365, 535) if mini_mode == "" else Vector2(player_x, 955))
 	if mini_mode != "":
@@ -263,6 +297,13 @@ func _rounded(color: Color, radius: int) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new(); box.bg_color = color; box.corner_radius_top_left = radius; box.corner_radius_top_right = radius; box.corner_radius_bottom_left = radius; box.corner_radius_bottom_right = radius; return box
 
 func _draw_axolotl(p: Vector2) -> void:
+	if axolotl_texture != null:
+		var idle := 0.0 if GameState.settings.reduced_motion else sin(Time.get_ticks_msec() * 0.003) * 7.0
+		var scale := 1.0 if GameState.settings.reduced_motion else 1.0 + sin(Time.get_ticks_msec() * 0.002) * 0.025
+		var tint := Color(1.0, 1.0 - maxf(0.0, 45.0 - GameState.happiness) * 0.006, 1.0 - maxf(0.0, 45.0 - GameState.water_quality) * 0.008, 1.0)
+		var size := Vector2(260, 208) * scale
+		canvas.draw_texture_rect(axolotl_texture, Rect2(p + Vector2(-130, -104 + idle), size), false, tint)
+		return
 	canvas.draw_circle(p + Vector2(0, 15), 62, Color("f5a0b4")); canvas.draw_circle(p + Vector2(48, 25), 35, Color("f5a0b4"))
 	for s in [-1, 1]:
 		canvas.draw_circle(p + Vector2(-35, -35) * s, 17, Color("e77799")); canvas.draw_circle(p + Vector2(-25, -58) * s, 13, Color("f38ba6"))
@@ -273,6 +314,9 @@ func _draw_placements() -> void:
 	for placed in sorted:
 		var item = catalog.get_item(str(placed.item_id)); if item == null: continue
 		var p := Vector2(float(placed.x) * W, float(placed.y) * H)
+		if decor_atlas_texture != null:
+			canvas.draw_texture_rect_region(decor_atlas_texture, Rect2(p - Vector2(54, 54), Vector2(108, 108)), atlas_region(item.id))
+			continue
 		if item.id == "water_fern":
 			for n in 4: canvas.draw_line(p, p + Vector2((n - 1.5) * 17, -62 + abs(n - 1) * 12), item.color, 11)
 		elif item.id == "cozy_log" or item.id == "cloud_hide": canvas.draw_circle(p, 48, item.color); canvas.draw_circle(p + Vector2(8, 8), 22, Color("254357"))

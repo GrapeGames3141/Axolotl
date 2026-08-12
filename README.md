@@ -13,7 +13,7 @@ Mouse/touch: use the large action buttons. In Decorate, select an item and tap t
 - Gentle Filter slows water decay; Pearl Bubbler adds happiness and visible bubbles.
 - Bubble Pop (30 seconds) and Food Catch (45 seconds), deterministic reward tiers, settings for sound/reduced motion/large targets.
 - Subtle procedural button/feed tones and rising Bubble Pop tones are synthesized at runtime when Sound is enabled; there are no external audio assets.
-- Code-native storybook illustration, no external art dependencies or monetization.
+- Coordinated built-in ImageGen storybook assets: a gouache/watercolor paludarium backdrop, transparent axolotl swimmer, and mapped 3×3 décor atlas. Final project assets live in `assets/storybook/`; generation prompts and transparency QA are recorded in `assets/storybook/generation-notes.md`.
 
 ## Run and test
 
@@ -28,4 +28,4 @@ Exports are configured in `export_presets.cfg`. Export output paths are `builds/
 
 ## Caveats
 
-The prototype uses simple synthesized shapes/UI and brief procedural feedback tones rather than production art or recorded audio.
+The prototype pairs generated storybook art with procedural fallback marks and brief synthesized feedback tones rather than recorded audio. Generated source intermediates are not required to run the project.
