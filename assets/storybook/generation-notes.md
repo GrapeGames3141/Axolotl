@@ -10,6 +10,14 @@ Mode: built-in `image_gen` (one call per distinct asset; targeted second calls o
 | `axolotl-swim-v1.png` | 1402×1122 RGBA | `6668E9981172CDA861C95E95B47ECEBBE313343547D8A0C8E4E60280A8B99D2F` | Transparent corner alpha 0, alpha extrema 0–255; soft gill edges and no visible green fringe. |
 | `decor-atlas-v1.png` | 1254×1254 RGBA | `25324A3B03B85B30727C64B3414C63963D0D9774AF73B46A88B3D9E4647CF33D` | Transparent corner alpha 0, alpha extrema 0–255; trustworthy 3×3 atlas mapping after chroma removal. |
 
+## Living pet pose pass
+
+Mode: built-in `image_gen`, one reference-guided background-extraction call per pose using `axolotl-swim-v1.png`. Every source used a perfectly flat `#00ff00` background and was copied immediately to E staging before the same soft-matte/despill helper pass. Final outputs: `axolotl-eat-v1.png` (1402x1122 RGBA, SHA-256 `02206D88060058844CEDEE36F3A8A3DE6C9999AA82DDF885AAC0831573B1D0AA`), `axolotl-sleep-v1.png` (1254x1254 RGBA, SHA-256 `88804971535B3BC15F0961C73F916FE68684AAC48A338D05CFADED887150ED8A`), and `axolotl-peek-v1.png` (1402x1122 RGBA, SHA-256 `2C7ED5D78F72D2D4C8CA244C4B1A58537FD6044683D24AA2223A7950190E6775`). Each has transparent corners, alpha extrema 0-255, and no visible green fringe on visual inspection.
+
+Prompts: eating: `identity-matched leucistic blush pink axolotl, coral gills, dark eyes, full body leaning forward with a small open anticipatory mouth, no food`; sleeping: `identity-matched leucistic axolotl gently curled, eyes closed, restful full silhouette`; hide peek: `identity-matched low compact front-half axolotl pose, suitable behind a hide`. All specified gouache/storybook styling, generous padding, no scenery, shadow, text, watermark, or green subject.
+
+Original C: paths (under the existing imagegen session) are `exec-dea55ccf-8001-4929-a986-ff8365c36dc8.png`, `exec-0e7f05c2-52c2-4d96-8280-07080ee271aa.png`, and `exec-7b3476f1-acd8-4cb3-a319-630d6d04da6a.png`. Source and copied E-staging SHA-256 values matched: `74F252505B7767C315CD447D1C40A943DABBBB701560E7356E5E203FC60FCB7F`, `FA4C44147DAAE029775B7DAE3E332592E1283B85D4E07BC59E1A7792500B2727`, and `6CC860A120B98E76C87671D9161AA2E03719126D5B475B8ADD65F90DAB9F4850` respectively.
+
 ## Final prompts
 
 ### Backdrop

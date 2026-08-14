@@ -15,6 +15,8 @@ Mouse/touch: use the large action buttons. In Decorate, select an item and tap t
 - Subtle procedural button/feed tones and rising Bubble Pop tones are synthesized at runtime when Sound is enabled; there are no external audio assets.
 - Coordinated built-in ImageGen storybook assets: a gouache/watercolor paludarium backdrop, transparent axolotl swimmer, and mapped 3×3 décor atlas. Final project assets live in `assets/storybook/`; generation prompts and transparency QA are recorded in `assets/storybook/generation-notes.md`.
 
+Living pet milestone: name Pip (or choose a new sanitized name), earn permanent bond through care and minigames, complete three daily wishes, and unlock curious, hide-peek, sleeping, and Kindred celebration poses. New eating, sleeping, and hide-peek storybook cutouts are integrated with procedural fallbacks. Saves use versioned `user://pocket_paludarium_v2.json` with atomic backup recovery; a v1 save migrates once while retaining the original v1 file as a rollback copy.
+
 ## Run and test
 
 Use Godot 4.7.1 to import `project.godot`, or run:

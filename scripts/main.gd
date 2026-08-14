@@ -1,6 +1,7 @@
 extends Node2D
 
 const CatalogScript := preload("res://scripts/catalog.gd")
+const PetBehaviorScript := preload("res://scripts/pet_behavior.gd")
 var catalog = CatalogScript.new()
 
 const W := 720.0
@@ -29,7 +30,11 @@ var mini_hud_label: Label
 var audio_player: AudioStreamPlayer
 var backdrop_texture: Texture2D
 var axolotl_texture: Texture2D
+var axolotl_eat_texture: Texture2D
+var axolotl_sleep_texture: Texture2D
+var axolotl_peek_texture: Texture2D
 var decor_atlas_texture: Texture2D
+var pet_behavior = PetBehaviorScript.new()
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
@@ -39,9 +44,13 @@ func _ready() -> void:
 	audio_player = AudioStreamPlayer.new(); add_child(audio_player)
 	backdrop_texture = load("res://assets/storybook/paludarium-backdrop-v1.png") as Texture2D
 	axolotl_texture = load("res://assets/storybook/axolotl-swim-v1.png") as Texture2D
+	axolotl_eat_texture = load("res://assets/storybook/axolotl-eat-v1.png") as Texture2D
+	axolotl_sleep_texture = load("res://assets/storybook/axolotl-sleep-v1.png") as Texture2D
+	axolotl_peek_texture = load("res://assets/storybook/axolotl-peek-v1.png") as Texture2D
 	decor_atlas_texture = load("res://assets/storybook/decor-atlas-v1.png") as Texture2D
 	GameState.state_changed.connect(refresh)
-	screen = "home" if GameState.tutorial_complete else "onboarding"
+	GameState.care_action.connect(func(action: String): pet_behavior.on_care_action(action))
+	screen = "home" if GameState.tutorial_complete and GameState.naming_prompt_state != "pending" else "onboarding"
 	refresh()
 
 func _notification(what: int) -> void:
@@ -53,6 +62,7 @@ func _process(delta: float) -> void:
 	if elapsed_accum >= 10.0: GameState.tick(elapsed_accum); elapsed_accum = 0.0
 	message_timer = maxf(0, message_timer - delta)
 	if mini_mode != "": _mini_process(delta)
+	pet_behavior.update(delta, GameState.bond_points, GameState.placements, bool(GameState.settings.get("reduced_motion", false)))
 	canvas.queue_redraw()
 	if toast != null: toast.text = message
 
@@ -92,29 +102,57 @@ func refresh() -> void:
 	elif screen == "mini": build_mini()
 	elif screen == "results": build_results()
 	elif screen == "settings": build_settings()
+	elif screen == "wishes": build_wishes()
 
 func build_onboarding() -> void:
 	make_label("Pocket Paludarium", Vector2(40, 125), Vector2(640, 80), 42, Color("fff4d6"))
-	make_label("A tiny, gentle world for one curious axolotl.\nKeep their belly full, water clear, and heart bright.", Vector2(75, 720), Vector2(570, 130), 25, Color("f7faf7"))
-	make_button("Meet your new friend", Rect2(90, 925, 540, 82), func(): GameState.tutorial_complete = true; GameState.save_game(); screen = "home"; refresh(), Color("d87691"))
+	make_label("What should we call this little friend?\nYou can change it later in settings.", Vector2(75, 710), Vector2(570, 105), 25, Color("f7faf7"))
+	var field := LineEdit.new(); field.text = GameState.pet_name; field.placeholder_text = "Pip"; field.max_length = 16; field.position = Vector2(130, 835); field.size = Vector2(460, 58); field.alignment = HORIZONTAL_ALIGNMENT_CENTER; field.add_theme_font_size_override("font_size", 27); ui.add_child(field)
+	make_button("Meet your new friend", Rect2(90, 925, 540, 82), func(): GameState.set_pet_name(field.text); GameState.tutorial_complete = true; GameState.save_game(); screen = "home"; refresh(), Color("d87691"))
 
 func build_home() -> void:
-	make_label("Pocket Paludarium", Vector2(35, 28), Vector2(470, 52), 31, Color("fff6dc"))
+	var home_title := "%s's Paludarium" % GameState.pet_name
+	make_label(home_title, Vector2(30, 28), Vector2(455, 52), home_title_font_size(GameState.pet_name), Color("fff6dc"))
 	make_label("◌ %d pearls" % GameState.pearls, Vector2(505, 30), Vector2(180, 48), 21, Color("ffe3a3"))
 	make_label("Fullness  %d     Happiness  %d     Water  %d" % [roundi(GameState.fullness), roundi(GameState.happiness), roundi(GameState.water_quality)], Vector2(35, 775), Vector2(650, 46), 19, Color("f5fff8"))
-	make_button("Feed", Rect2(45, 845, 195, 70), func(): quick_feed(), Color("d87691"))
-	make_button("Clean", Rect2(262, 845, 195, 70), func(): GameState.clean(); say("Sparkly clean water!"), Color("5395ad"))
-	make_button("Pet", Rect2(480, 845, 195, 70), func(): GameState.pet(); say("A happy little wiggle!"), Color("8a769e"))
-	make_button("Decorate", Rect2(45, 940, 195, 70), func(): screen = "decorate"; refresh())
-	make_button("Shop", Rect2(262, 940, 195, 70), func(): screen = "shop"; refresh())
-	make_button("Play", Rect2(480, 940, 195, 70), func(): screen = "mini_select"; refresh(), Color("ce8a5f"))
+	make_label("%s · %d bond · Wishes %d/3" % [GameState.bond_title(), GameState.bond_points, GameState.completed_wishes()], Vector2(35, 817), Vector2(650, 28), 17, Color("ffe3a3"))
+	make_button("Feed", Rect2(45, 855, 195, 70), func(): quick_feed(), Color("d87691"))
+	make_button("Clean", Rect2(262, 855, 195, 70), func(): care_clean(), Color("5395ad"))
+	make_button("Pet", Rect2(480, 855, 195, 70), func(): care_pet(), Color("8a769e"))
+	make_button("Decorate", Rect2(45, 950, 195, 70), func(): screen = "decorate"; refresh())
+	make_button("Shop", Rect2(262, 950, 195, 70), func(): screen = "shop"; refresh())
+	make_button("Play", Rect2(480, 950, 195, 70), func(): screen = "mini_select"; refresh(), Color("ce8a5f"))
+	make_button("Wishes", Rect2(262, 1035, 195, 54), func(): screen = "wishes"; refresh(), Color("7b739e"))
 	make_button("⚙", Rect2(615, 1090, 60, 60), func(): screen = "settings"; refresh(), Color("526b76"))
 	toast = make_label(message, Vector2(75, 1060), Vector2(570, 55), 20, Color("fff1c3"))
 	if GameState.welcome_summary != "": say(GameState.welcome_summary); GameState.welcome_summary = ""
 
+func home_title_font_size(pet_name: String) -> int:
+	return 23 if ("%s's Paludarium" % pet_name).length() > 22 else 31
+
 func quick_feed() -> void:
-	if GameState.feed("berry_bites"): say("Nom nom! Berry bites served.")
+	if GameState.feed("berry_bites"):
+		if pet_behavior.trigger_feed(GameState.bond_points): say("Nom nom! Berry bites served.")
+		else: say("A gentle snack — eating unlocks at Curious bond.")
 	else: say("No Berry Bites left — visit the shop.")
+
+func care_clean() -> void:
+	pet_behavior.wake(); GameState.clean(); say("Sparkly clean water!")
+
+func care_pet() -> void:
+	pet_behavior.wake(); GameState.pet(); say("A happy little wiggle!")
+
+func build_wishes() -> void:
+	GameState.ensure_daily_wishes()
+	make_label("Today's little wishes", Vector2(35, 60), Vector2(650, 60), 35, Color("fff4d6"))
+	make_label("Each wish gives 6 pearls and 8 bonus bond.", Vector2(45, 120), Vector2(630, 35), 18, Color("e4f7f2"))
+	var y := 230
+	for wish in GameState.wishes:
+		var done := bool(wish.get("claimed", false))
+		var card := make_label(("Done: " if done else "Wish: ") + str(wish.get("title", "A little wish")) + ("\nClaimed" if done else "\nComplete the matching action"), Vector2(55, y), Vector2(610, 105), 22, Color("bce5c2") if done else Color("fff2d1"))
+		var card_style := StyleBoxFlat.new(); card_style.bg_color = Color("102f3c", 0.82); card_style.corner_radius_top_left = 18; card_style.corner_radius_top_right = 18; card_style.corner_radius_bottom_left = 18; card_style.corner_radius_bottom_right = 18; card.add_theme_stylebox_override("normal", card_style)
+		y += 150
+	make_button("Home", Rect2(35, 1110, 160, 65), func(): screen = "home"; refresh())
 
 func build_shop() -> void:
 	make_label("The Ripple Shop", Vector2(40, 38), Vector2(640, 60), 34, Color("fff4d6")); make_button("← Home", Rect2(35, 1110, 160, 65), func(): screen = "home"; refresh())
@@ -201,6 +239,8 @@ func build_settings() -> void:
 	make_button("Sound: %s" % ("On" if GameState.settings.sound else "Off"), Rect2(95, 300, 530, 74), func(): GameState.settings.sound = not GameState.settings.sound; GameState.save_game(); refresh())
 	make_button("Reduced motion: %s" % ("On" if GameState.settings.reduced_motion else "Off"), Rect2(95, 405, 530, 74), func(): GameState.settings.reduced_motion = not GameState.settings.reduced_motion; GameState.save_game(); refresh())
 	make_button("Large targets: %s" % ("On" if GameState.settings.large_targets else "Off"), Rect2(95, 510, 530, 74), func(): GameState.settings.large_targets = not GameState.settings.large_targets; GameState.save_game(); refresh())
+	var name_field := LineEdit.new(); name_field.text = GameState.pet_name; name_field.max_length = 16; name_field.position = Vector2(95, 640); name_field.size = Vector2(350, 65); name_field.add_theme_font_size_override("font_size", 24); ui.add_child(name_field)
+	make_button("Save name", Rect2(460, 640, 165, 65), func(): GameState.set_pet_name(name_field.text); say("Hello, %s!" % GameState.pet_name); refresh(), Color("d87691"))
 	make_button("← Home", Rect2(35, 1110, 160, 65), func(): screen = "home"; refresh())
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -281,8 +321,10 @@ func _draw_world() -> void:
 	# gravel
 	if backdrop_texture == null:
 		for x in range(75, 655, 43): canvas.draw_circle(Vector2(x, 694 + (x % 3) * 6), 18, Color("65869a"))
-	_draw_placements()
-	_draw_axolotl(Vector2(365, 535) if mini_mode == "" else Vector2(player_x, 955))
+	if pet_behavior.pose == "peek" and mini_mode == "":
+		_draw_axolotl(pet_draw_position()); _draw_placements()
+	else:
+		_draw_placements(); _draw_axolotl(pet_draw_position() if mini_mode == "" else Vector2(player_x, 955))
 	if mini_mode != "":
 		for target in targets:
 			var p: Vector2 = target.pos
@@ -296,18 +338,41 @@ func _draw_world() -> void:
 func _rounded(color: Color, radius: int) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new(); box.bg_color = color; box.corner_radius_top_left = radius; box.corner_radius_top_right = radius; box.corner_radius_bottom_left = radius; box.corner_radius_bottom_right = radius; return box
 
+func pet_draw_position() -> Vector2:
+	return pet_behavior.current_position * Vector2(W, H)
+
 func _draw_axolotl(p: Vector2) -> void:
-	if axolotl_texture != null:
+	var pose_texture := axolotl_texture
+	if pet_behavior.pose == "eat" and axolotl_eat_texture != null: pose_texture = axolotl_eat_texture
+	elif pet_behavior.pose == "sleep" and axolotl_sleep_texture != null: pose_texture = axolotl_sleep_texture
+	elif pet_behavior.pose == "peek" and axolotl_peek_texture != null: pose_texture = axolotl_peek_texture
+	if pose_texture != null:
 		var idle := 0.0 if GameState.settings.reduced_motion else sin(Time.get_ticks_msec() * 0.003) * 7.0
 		var scale := 1.0 if GameState.settings.reduced_motion else 1.0 + sin(Time.get_ticks_msec() * 0.002) * 0.025
 		var tint := Color(1.0, 1.0 - maxf(0.0, 45.0 - GameState.happiness) * 0.006, 1.0 - maxf(0.0, 45.0 - GameState.water_quality) * 0.008, 1.0)
 		var size := Vector2(260, 208) * scale
-		canvas.draw_texture_rect(axolotl_texture, Rect2(p + Vector2(-130, -104 + idle), size), false, tint)
+		canvas.draw_texture_rect(pose_texture, Rect2(p + Vector2(-130, -104 + idle), size), false, tint)
+		if GameState.bond_unlocked("Kindred"): _draw_kindred_celebration(p)
 		return
 	canvas.draw_circle(p + Vector2(0, 15), 62, Color("f5a0b4")); canvas.draw_circle(p + Vector2(48, 25), 35, Color("f5a0b4"))
 	for s in [-1, 1]:
 		canvas.draw_circle(p + Vector2(-35, -35) * s, 17, Color("e77799")); canvas.draw_circle(p + Vector2(-25, -58) * s, 13, Color("f38ba6"))
 	canvas.draw_circle(p + Vector2(18, -11), 8, Color("263949")); canvas.draw_circle(p + Vector2(38, -11), 8, Color("263949")); canvas.draw_arc(p + Vector2(28, 15), 13, 0.2, 2.9, 16, Color("613b50"), 3)
+
+func _draw_kindred_celebration(p: Vector2) -> void:
+	var heart := p + Vector2(105, -92)
+	var gold := Color("ffd56b")
+	canvas.draw_circle(heart + Vector2(-8, -5), 9, gold)
+	canvas.draw_circle(heart + Vector2(8, -5), 9, gold)
+	canvas.draw_colored_polygon(PackedVector2Array([heart + Vector2(-16, -4), heart + Vector2(16, -4), heart + Vector2(0, 19)]), gold)
+	canvas.draw_circle(heart + Vector2(-5, -6), 2.5, Color("fff3bd"))
+	if bool(GameState.settings.get("reduced_motion", false)): return
+	var phase := Time.get_ticks_msec() * 0.002
+	for n in 6:
+		var angle := phase + float(n) * TAU / 6.0
+		var radius := 52.0 + fmod(phase * 17.0 + n * 9.0, 22.0)
+		var sparkle := heart + Vector2(cos(angle), sin(angle)) * radius + Vector2(0, sin(phase * 2.0 + n) * 8.0)
+		canvas.draw_circle(sparkle, 3.0 + float(n % 2), Color("ffe8a4", 0.9))
 
 func _draw_placements() -> void:
 	var sorted := GameState.placements.duplicate(); sorted.sort_custom(func(a, b): return int(a.layer) < int(b.layer))
