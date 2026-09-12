@@ -1,7 +1,33 @@
+# Godot editor cache
 .godot/
 .import/
 *.tmp
 *.log
-*.import
+
+# Build outputs
 builds/
+*.apk
+*.aab
+
+# Godot Android export template (generated locally and in CI).
+# Commit only the Play release overlay files under android/.
+/android/*
+!android/play-release.gradle
+!android/proguard-godot-play.pro
+!android/.build_version
+
+# AdMob Android binaries are downloaded by scripts/ci/godot-export-android.sh.
+addons/admob/android/bin/
+
+# Local AdMob runtime config (the example is committed).
+config/admob.json
+
+# Signing credentials and release keys (never commit).
+export_credentials.cfg
 android_debug.keystore
+*.keystore
+*.jks
+*service-account*.json
+
+# OS junk
+.DS_Store

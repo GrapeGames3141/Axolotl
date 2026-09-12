@@ -17,6 +17,20 @@ Mouse/touch: use the large action buttons. In Decorate, select an item and tap t
 
 Living pet milestone: name Pip (or choose a new sanitized name), earn permanent bond through care and minigames, complete three daily wishes, and unlock curious, hide-peek, sleeping, and Kindred celebration poses. New eating, sleeping, and hide-peek storybook cutouts are integrated with procedural fallbacks. Saves use versioned `user://pocket_paludarium_v2.json` with atomic backup recovery; a v1 save migrates once while retaining the original v1 file as a rollback copy.
 
+## Google Play
+
+Release builds go to the Play **internal** track automatically on every push to
+`master`. Setup, secrets, the AdMob banner, and the console checklist are in
+[docs/PLAY_ANDROID.md](docs/PLAY_ANDROID.md); the listing copy and the generated
+icon, feature graphic, and phone screenshots are in [store/](store/) —
+see [store/LISTING.md](store/LISTING.md).
+
+A single AdMob bottom banner is wired through `autoload/ad_bar_service.gd`. It
+serves **Google's official test unit** until both `ADMOB_USE_TEST_UNITS` and the
+AdMob secrets are switched over, so test builds can never generate invalid
+traffic. The game shrinks its stage to reserve room for the bar, so no control
+ever sits underneath it.
+
 ## Run and test
 
 Use Godot 4.7.1 to import `project.godot`, or run:
@@ -26,7 +40,15 @@ Use Godot 4.7.1 to import `project.godot`, or run:
 & 'E:\CodexCache\godot-android-4.7.1\godot\Godot_v4.7.1-stable_win64_console.exe' --headless --path . -s res://tests/test_runner.gd
 ```
 
-Exports are configured in `export_presets.cfg`. Export output paths are `builds/` and intentionally ignored by Git. A debug setting named `debug/minigame_duration_override` can shorten minigames during automated testing; normal builds retain 30/45 seconds.
+Regenerate the store art after any visual change:
+
+```bash
+godot --path . --resolution 720x1280 tests/capture.tscn
+python3 scripts/tools/generate_store_assets.py
+```
+
+Exports are configured in `export_presets.cfg` (`Android Play` builds the signed
+Play AAB via `scripts/ci/godot-export-android.sh`). Export output paths are `builds/` and intentionally ignored by Git. A debug setting named `debug/minigame_duration_override` can shorten minigames during automated testing; normal builds retain 30/45 seconds.
 
 ## Caveats
 

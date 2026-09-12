@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_RELEASE: "4.7.1-stable"
+
+jobs:
+  test:
+    name: Headless tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out game source
+        uses: actions/checkout@v4
+
+      - name: Cache Godot editor and imports
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pocket-paludarium/godot
+            .godot
+          key: ci-godot-${{ runner.os }}-${{ env.GODOT_RELEASE }}-${{ hashFiles('**/*.gd', '**/*.import', 'project.godot') }}
+          restore-keys: |
+            ci-godot-${{ runner.os }}-${{ env.GODOT_RELEASE }}-
+
+      - name: Install Godot editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache_dir="$HOME/.cache/pocket-paludarium/godot"
+          editor_zip="$cache_dir/Godot_v${GODOT_RELEASE}_linux.x86_64.zip"
+          editor_url="https://github.com/godotengine/godot-builds/releases/download/${GODOT_RELEASE}/Godot_v${GODOT_RELEASE}_linux.x86_64.zip"
+          mkdir -p "$cache_dir" "$HOME/.local/bin"
+          if [[ ! -s "$editor_zip" ]]; then
+            curl --fail --location --retry 3 --output "$editor_zip" "$editor_url"
+          fi
+          unzip -qo "$editor_zip" -d "$cache_dir/editor"
+          install -m 755 \
+            "$cache_dir/editor/Godot_v${GODOT_RELEASE}_linux.x86_64" \
+            "$HOME/.local/bin/godot"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/godot" --version
+
+      - name: Import project assets
+        run: godot --headless --path . --import
+
+      - name: Run headless regression tests
+        run: godot --headless --path . --script tests/test_runner.gd

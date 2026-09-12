@@ -35,12 +35,18 @@ var axolotl_sleep_texture: Texture2D
 var axolotl_peek_texture: Texture2D
 var decor_atlas_texture: Texture2D
 var pet_behavior = PetBehaviorScript.new()
+var stage: Node2D
+var ad_reserve := 0.0
+## Forces a banner reserve in captures/tests so the shrunken layout can be checked
+## on desktop, where no real banner loads.
+var validation_ad_reserve := 0.0
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
 	get_tree().auto_accept_quit = true
-	canvas = Control.new(); canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE; canvas.draw.connect(_draw_world); add_child(canvas)
-	ui = Control.new(); ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); add_child(ui)
+	stage = Node2D.new(); stage.name = "Stage"; add_child(stage)
+	canvas = Control.new(); canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE; canvas.draw.connect(_draw_world); stage.add_child(canvas)
+	ui = Control.new(); ui.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); stage.add_child(ui)
 	audio_player = AudioStreamPlayer.new(); add_child(audio_player)
 	backdrop_texture = load("res://assets/storybook/paludarium-backdrop-v1.png") as Texture2D
 	axolotl_texture = load("res://assets/storybook/axolotl-swim-v1.png") as Texture2D
@@ -52,6 +58,7 @@ func _ready() -> void:
 	GameState.care_action.connect(func(action: String): pet_behavior.on_care_action(action))
 	screen = "home" if GameState.tutorial_complete and GameState.naming_prompt_state != "pending" else "onboarding"
 	refresh()
+	call_deferred("_sync_ad_bar")
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED: GameState.notify_app_paused()
@@ -65,8 +72,44 @@ func _process(delta: float) -> void:
 	pet_behavior.update(delta, GameState.bond_points, GameState.placements, bool(GameState.settings.get("reduced_motion", false)))
 	canvas.queue_redraw()
 	if toast != null: toast.text = message
+	if stage != null and not is_equal_approx(ad_reserve, ad_bottom_reserve()): _apply_ad_reserve()
 
-func _layout() -> void: canvas.queue_redraw()
+func _layout() -> void:
+	_apply_ad_reserve()
+	canvas.queue_redraw()
+
+## Shrink the 720x1280 stage uniformly so the native AdMob banner never covers
+## the bottom row of buttons. The banner itself is drawn by the OS below us.
+func _sync_ad_bar() -> void:
+	var service := _ad_service()
+	if service == null:
+		return
+	service.attach_to(self)
+	_apply_ad_reserve()
+
+## Looked up by path rather than by the autoload identifier so this script also
+## parses in the headless test/capture harnesses, which run without autoloads.
+func _ad_service() -> Node:
+	var tree := get_tree()
+	if tree == null or not tree.root.has_node("AdBarService"):
+		return null
+	return tree.root.get_node("AdBarService")
+
+func ad_bottom_reserve() -> float:
+	if validation_ad_reserve > 0.0:
+		return validation_ad_reserve
+	var service := _ad_service()
+	if service == null or not service.ads_enabled():
+		return 0.0
+	return clampf(service.banner_height(), 0.0, H * 0.25)
+
+func _apply_ad_reserve() -> void:
+	if stage == null:
+		return
+	ad_reserve = ad_bottom_reserve()
+	var factor := clampf((H - ad_reserve) / H, 0.5, 1.0)
+	stage.scale = Vector2(factor, factor)
+	stage.position = Vector2((W - W * factor) * 0.5, 0.0)
 
 func clear_ui() -> void:
 	for child in ui.get_children(): child.queue_free()
@@ -246,6 +289,8 @@ func build_settings() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		var p: Vector2 = event.position * Vector2(W / get_viewport_rect().size.x, H / get_viewport_rect().size.y)
+		if stage != null:
+			p = (p - stage.position) / stage.scale
 		if screen == "decorate" and p.y > 130 and p.y < 755:
 			for placed in GameState.placements:
 				var q := Vector2(float(placed.x) * W, float(placed.y) * H)

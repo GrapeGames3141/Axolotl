@@ -1,0 +1,17 @@
+{
+  "_comment": "Copy to config/admob.json for local runs. CI writes config/admob.json from scripts/ci/godot-export-android.sh. While use_google_test_units is true the bar always serves Google's official test banner (ca-app-pub-3940256099942544/6300978111) regardless of the ids below.",
+  "ads_enabled": true,
+  "android_ads_enabled": true,
+  "ios_ads_enabled": false,
+  "use_google_test_units": true,
+  "products": {
+    "pocket_paludarium": {
+      "android_banner_unit_id": "ca-app-pub-3940256099942544/6300978111",
+      "ios_banner_unit_id": "ca-app-pub-3940256099942544/2435281174"
+    }
+  },
+  "child_directed": false,
+  "tag_for_under_age_of_consent": false,
+  "max_ad_content_rating": "G",
+  "banner_height_dp": 60
+}

@@ -12,6 +12,9 @@ func _ready() -> void:
 	GameState.defaults(); GameState.tutorial_complete = false; GameState.naming_prompt_state = "new"
 	var main = MainScript.new(); add_child(main)
 	await get_tree().process_frame
+	if OS.get_environment("CAPTURE_AD_RESERVE") != "":
+		main.validation_ad_reserve = float(OS.get_environment("CAPTURE_AD_RESERVE"))
+		main._apply_ad_reserve()
 	main.screen = "onboarding"; main.refresh(); await capture("onboarding")
 	GameState.set_pet_name("Lumi"); GameState.tutorial_complete = true; GameState.bond_points = 30; GameState.ensure_daily_wishes("2026-08-14")
 	main.screen = "home"; main.refresh(); await capture("named-home")
