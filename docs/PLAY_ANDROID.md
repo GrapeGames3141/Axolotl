@@ -57,15 +57,19 @@ Repo → Settings → Secrets and variables → Actions → **Secrets**:
 | `ADMOB_ANDROID_APP_ID` | AdMob App ID (`ca-app-pub-…~…`) |
 | `ADMOB_ANDROID_BANNER_UNIT_ID` | AdMob banner unit (`ca-app-pub-…/…`) |
 
-Create the keystore and encode it once:
+This app signs with the shared Grapegames upload key (alias `grapegames`), the
+same one peregrine uses; Play App Signing is per-app, so one upload key can cover
+several games. To encode it for the secret:
 
 ```bash
-keytool -genkeypair -v -keystore release.keystore -alias pocketpaludarium \
-  -keyalg RSA -keysize 2048 -validity 10000
-base64 -w0 release.keystore > release.keystore.b64
+base64 -w0 ~/release-grapegames.keystore | gh secret set ANDROID_KEYSTORE_BASE64
 ```
 
-Keep `release.keystore` somewhere safe and out of the repo — losing it means you
+Note these must be **repository** secrets. Organization secrets do not reach a
+private repo on the current plan — they arrive empty and the deploy fails at the
+"Decode release keystore" guard.
+
+Keep the keystore somewhere safe and out of the repo — losing it means you
 can never update the app under the same package name. `.gitignore` already
 blocks `*.keystore`, `*.jks`, and `*service-account*.json`.
 
@@ -81,16 +85,23 @@ as `1.<run_number>`, validates the built AAB's manifest with Google's official
 Bundletool, and only then uploads. It publishes no GitHub Actions artifact — the
 AAB goes straight to Play.
 
-The first push will fail at the upload step until the app exists in Play Console
-with at least one manual upload of that package name; Google requires the first
-AAB for a new app to be uploaded through the web UI.
+CI uploads to the **internal** track only. To put a build in front of closed
+testers, promote it rather than re-uploading: Testing → Internal testing →
+Releases → **Promote release** → Closed testing. Play rejects a second upload of
+the same versionCode, and a closed-testing release with no bundle attached fails
+with "This release does not add or remove any app bundles".
+
+To make CI target a closed track directly, change `tracks: internal` in
+`deploy-android.yml` to the track's name (`alpha` for the default closed track,
+or the custom track name you created).
 
 ## Play Console checklist
 
-- [ ] Create the app (`com.grapegames.pocketpaludarium`), Game → Simulation
-- [ ] Upload one AAB manually to internal testing to register the package
-- [ ] Play Console → Users and permissions → invite the Play API service account
+- [x] Create the app (`com.grapegames.pocketpaludarium`), Game → Simulation
+- [x] Play Console → Users and permissions → invite the Play API service account
+- [x] First CI upload to internal (versionCode 1) — no manual upload was needed
 - [ ] Internal testing → testers list + share the opt-in link
+- [ ] Closed testing → promote the internal release, then add testers
 - [ ] Store listing from [`store/LISTING.md`](../store/LISTING.md) (copy + art)
 - [ ] App content → Privacy policy URL
 - [ ] App content → **Ads: contains ads = yes**
@@ -133,8 +144,8 @@ It needs `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) and a JDK 17. Release signing
 comes from the usual Godot env vars:
 
 ```bash
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/.android/release.keystore
-export GODOT_ANDROID_KEYSTORE_RELEASE_USER=pocketpaludarium
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$HOME/release-grapegames.keystore
+export GODOT_ANDROID_KEYSTORE_RELEASE_USER=grapegames
 export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=…
 ```
 
