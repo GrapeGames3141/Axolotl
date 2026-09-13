@@ -1,4 +1,4 @@
-name: Deploy Godot Android - Internal Test
+name: Deploy Godot Android - Closed Test
 
 on:
   push:
@@ -150,11 +150,13 @@ jobs:
           GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: ./scripts/ci/godot-export-android.sh
 
-      - name: Upload to Play Store Internal track
+      - name: Upload to Play Store Closed testing track
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.PACKAGE_NAME }}
           releaseFiles: builds/android/${{ env.ARTIFACT_STEM }}.aab
-          tracks: internal
+          # "alpha" is the Play API name for the default Closed testing
+          # track. A custom closed track uses the name you gave it.
+          tracks: alpha
           status: completed

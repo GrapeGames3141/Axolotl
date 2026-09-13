@@ -78,30 +78,30 @@ blocks `*.keystore`, `*.jks`, and `*service-account*.json`.
 | Workflow | Trigger | Does |
 | --- | --- | --- |
 | [`ci.yml`](../.github/workflows/ci.yml) | pull request, manual | Imports the project and runs `tests/test_runner.gd` |
-| [`deploy-android.yml`](../.github/workflows/deploy-android.yml) | push to `main`/`master`, manual | Builds the signed AAB and uploads it to the Play **internal** track |
+| [`deploy-android.yml`](../.github/workflows/deploy-android.yml) | push to `main`/`master`, manual | Builds the signed AAB and uploads it to the Play **Closed testing** track (`alpha`) |
 
 The deploy job stamps `versionCode` from `github.run_number` and `versionName`
 as `1.<run_number>`, validates the built AAB's manifest with Google's official
 Bundletool, and only then uploads. It publishes no GitHub Actions artifact — the
 AAB goes straight to Play.
 
-CI uploads to the **internal** track only. To put a build in front of closed
-testers, promote it rather than re-uploading: Testing → Internal testing →
-Releases → **Promote release** → Closed testing. Play rejects a second upload of
-the same versionCode, and a closed-testing release with no bundle attached fails
-with "This release does not add or remove any app bundles".
+CI uploads straight to **Closed testing**. `tracks: alpha` in
+`deploy-android.yml` is the Play API name for the default Closed testing track;
+if you created a *custom* closed track, put its own name there instead or the
+upload fails with a track-not-found error.
 
-To make CI target a closed track directly, change `tracks: internal` in
-`deploy-android.yml` to the track's name (`alpha` for the default closed track,
-or the custom track name you created).
+versionCode 1 was published to the internal track by the first run and stays
+there. Play rejects a second upload of the same versionCode, so promote an
+existing build rather than re-uploading it — and note that a release with no
+bundle attached fails with "This release does not add or remove any app
+bundles".
 
 ## Play Console checklist
 
 - [x] Create the app (`com.grapegames.pocketpaludarium`), Game → Simulation
 - [x] Play Console → Users and permissions → invite the Play API service account
-- [x] First CI upload to internal (versionCode 1) — no manual upload was needed
-- [ ] Internal testing → testers list + share the opt-in link
-- [ ] Closed testing → promote the internal release, then add testers
+- [x] First CI upload (versionCode 1) landed on internal — no manual upload needed
+- [ ] Closed testing → testers list + share the opt-in link
 - [ ] Store listing from [`store/LISTING.md`](../store/LISTING.md) (copy + art)
 - [ ] App content → Privacy policy URL
 - [ ] App content → **Ads: contains ads = yes**
