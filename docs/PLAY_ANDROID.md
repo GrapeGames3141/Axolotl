@@ -90,7 +90,20 @@ CI uploads straight to **Closed testing**. `tracks: alpha` in
 if you created a *custom* closed track, put its own name there instead or the
 upload fails with a track-not-found error.
 
-versionCode 1 was published to the internal track by the first run and stays
+While the app is still a **draft** in Play Console — nothing published to any
+track yet — Google rejects a `completed` release on a closed track with "Only
+releases with status draft may be created on draft app". The internal track is
+exempt, which is why the earliest runs passed. So `deploy-android.yml` uses
+`status: draft`: CI builds, signs, and stages the release, and you press
+**Review release → Start rollout** in the console. Switch it back to
+`status: completed` once the app's first release is published and the deploy
+becomes fully hands-off.
+
+Getting the app out of draft means finishing the Play Console checklist below —
+store listing, content rating, data safety, target audience, and a privacy
+policy are all required before anything can be published.
+
+versionCode 1 and 2 went to the internal track from the earliest runs and stay
 there. Play rejects a second upload of the same versionCode, so promote an
 existing build rather than re-uploading it — and note that a release with no
 bundle attached fails with "This release does not add or remove any app

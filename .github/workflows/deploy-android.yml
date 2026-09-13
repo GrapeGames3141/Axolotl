@@ -159,4 +159,10 @@ jobs:
           # "alpha" is the Play API name for the default Closed testing
           # track. A custom closed track uses the name you gave it.
           tracks: alpha
-          status: completed
+          # The app is still a draft in Play Console (nothing published yet), and
+          # Google only accepts draft releases on a draft app:
+          #   "Only releases with status draft may be created on draft app."
+          # CI therefore stages the build and you roll it out from the console.
+          # Once the app's first release is published, switch this to "completed"
+          # for a hands-off deploy.
+          status: draft
